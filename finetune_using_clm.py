@@ -100,7 +100,7 @@ def load_raw_datasets(cfg: DictConfig) -> DatasetDict:
         raw_datasets = load_dataset(cfg.dataset.name, cfg.dataset.config_name)
 
     return raw_datasets
-
+sampler = torch.utils.data.distributed.DistributedSampler(raw_datasets)
 
 def load_model_and_tokenizer(cfg: DictConfig):
 
@@ -126,6 +126,7 @@ def load_model_and_tokenizer(cfg: DictConfig):
         from_tf=bool(".ckpt" in cfg.model.name),
         config=config,
     )
+    model = torch.nn.DistributedDataParallel(model, device_ids=list(range(torch.cuda.device_count())))
     model.resize_token_embeddings(len(tokenizer))
 
     return tokenizer, model
@@ -283,6 +284,7 @@ def main(cfg: DictConfig):
         shuffle=True,
         collate_fn=default_data_collator,
         batch_size=cfg.training.train_batch_size,
+        sampler = sampler,
     )
     eval_dataloader = DataLoader(
         eval_dataset,
